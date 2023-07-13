@@ -1,0 +1,28 @@
+.scorePanel {
+  border: solid black 2px;
+  padding: 5px;
+  width: 350px;
+}
+
+.score {
+  font-size: x-large;
+}
+
+.next-block {
+  margin-left: 50px;
+  padding: 5px;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  grid-template-rows: repeat(4, 1fr);
+  height: 100px;
+  width: 100px;
+}
+
+.brick {
+  border: 5px solid grey;
+  padding: 15px;
+  margin: 1px;
+  width: 15px;
+  height: 15px;
+  border-radius: 2px;
+}

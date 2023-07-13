@@ -1,24 +1,25 @@
-import React from 'react';
-import logo from './logo.svg';
-import './App.css';
+import React, { useState } from "react";
+import "./App.css";
+import Board, { BLOCKS } from "./Board";
+import ScorePanel from "./ScorePanel";
 
 function App() {
+  const [level, setLevel] = useState(1);
+  const [score, setScore] = useState(0);
+  const [nextBlock, setNextBlock] = useState<number[][]>(
+    BLOCKS[Math.floor(Math.random() * BLOCKS.length)]
+  );
+
   return (
     <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.tsx</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
+      <Board
+        level={level}
+        setLevel={setLevel}
+        nextBlock={nextBlock}
+        setScore={setScore}
+        setNextBlock={setNextBlock}
+      />
+      <ScorePanel score={score} level={level} nextBlock={nextBlock} />
     </div>
   );
 }
