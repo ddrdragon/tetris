@@ -34,4 +34,6 @@ export const BOARD_HEIGHT = 18;
 
 export const EMPTY_BOARD = create2DArray(BOARD_HEIGHT, BOARD_WIDTH);
 
+export const EMPTY_SCORE_PANEL_BOARD = create2DArray(2, 4);
+
 export const EMPTY_LINE = new Array<number>(BOARD_WIDTH).fill(0);

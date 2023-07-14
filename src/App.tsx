@@ -1,13 +1,14 @@
 import React, { useEffect, useRef, useState } from "react";
 import "./App.css";
-import { BLOCKS, BOARD_HEIGHT, BOARD_WIDTH, EMPTY_BOARD, EMPTY_LINE } from "./constant";
-import { create2DArray, deepCopy2DArray, getRadomInt } from "./util";
+import { BOARD_HEIGHT, BOARD_WIDTH, EMPTY_BOARD, EMPTY_LINE, EMPTY_SCORE_PANEL_BOARD } from "./constant";
+import { create2DArray, deepCopy2DArray, getRandomBlock } from "./util";
+import NextBlockBoard from "./components/nextBlockBoard";
 
 const App = () => {
   const [level, setLevel] = useState(1);
   const [score, setScore] = useState(0);
-  const [nextBlock, setNextBlock] = useState<number[][]>(BLOCKS[getRadomInt(BLOCKS.length)]);
-  const [scorePanelBoard, setScorePanelBoard] = useState(EMPTY_BOARD);
+
+  const [nextBlock, setNextBlock] = useState<number[][]>(getRandomBlock());
 
   const [board, setBoard] = useState<number[][]>(EMPTY_BOARD);
   const [isPaused, setPaused] = useState(false);
@@ -15,7 +16,7 @@ const App = () => {
 
   const currLevelRef = useRef(1);
 
-  const blockRef = useRef(BLOCKS[getRadomInt(BLOCKS.length)]);
+  const blockRef = useRef(getRandomBlock());
   const blockPositionRef = useRef([4, -1]);
   const stabledBoardRef = useRef(board);
 
@@ -185,7 +186,7 @@ const App = () => {
   const resetGame = () => {
     setBoard(EMPTY_BOARD);
     setScore(0);
-    setNextBlock(BLOCKS[getRadomInt(BLOCKS.length)]);
+    updateNextBlock();
     isPausedRef.current = false;
     setPaused(false);
     stabledBoardRef.current = EMPTY_BOARD;
@@ -232,6 +233,10 @@ const App = () => {
     return lines;
   };
 
+  const updateNextBlock = () => {
+    setNextBlock(getRandomBlock());
+  };
+
   const updateBoard = () => {
     const newBoard = deepCopy2DArray(stabledBoardRef.current);
     const newBlock = deepCopy2DArray(blockRef.current);
@@ -261,7 +266,7 @@ const App = () => {
       isTouchingRef.current = false;
 
       addBlockToBoard(newBoard, blockRef.current);
-      setNextBlock(BLOCKS[getRadomInt(BLOCKS.length)]);
+      updateNextBlock();
     }
 
     setBoard(newBoard);
@@ -330,16 +335,6 @@ const App = () => {
     };
   }, [isPaused, nextBlock, level]);
 
-  useEffect(() => {
-    const newBoard = create2DArray(2, 4);
-    for (let i = 0; i < nextBlock.length; i++) {
-      for (let j = 0; j < nextBlock[0].length; j++) {
-        newBoard[i][j] = nextBlock[i][j];
-      }
-    }
-    setScorePanelBoard(newBoard);
-  }, [nextBlock]);
-
   return (
     <div className="App">
       <div className={"board"}>
@@ -360,20 +355,27 @@ const App = () => {
         ))}
       </div>
       <div className="scorePanel">
+        {/* score */}
         <div>
           Score: <b className="score">{score}</b>
         </div>
+
+        {/* level */}
         <div>
           Level: <b className="score">{level}</b>
         </div>
         <br />
+
+        {/* next block */}
         <div>
           Next:
-          <div className={"next-block"}>
-            {scorePanelBoard.flat().map((v, i) => (
-              <div className={`brick state${v}`} key={i}></div>
-            ))}
-          </div>
+          <NextBlockBoard nextBlock={nextBlock} />
+        </div>
+        <br />
+
+        {/* buttons */}
+        <div>
+          <button>start</button>
         </div>
       </div>
     </div>

@@ -1,3 +1,5 @@
+import { BLOCKS } from "./constant";
+
 export const create2DArray = (r: number, c: number) => {
   const row = new Array(c).fill(0);
   const array: number[][] = [];
@@ -18,4 +20,8 @@ export const deepCopy2DArray = (arr: number[][]) => {
 
 export const getRadomInt = (max: number) => {
   return Math.floor(Math.random() * max);
+};
+
+export const getRandomBlock = () => {
+  return BLOCKS[getRadomInt(BLOCKS.length)];
 };
