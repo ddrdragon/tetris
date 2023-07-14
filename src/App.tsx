@@ -1,27 +1,28 @@
 import React, { useEffect, useRef, useState } from "react";
 import "./App.css";
-import { BOARD_HEIGHT, BOARD_WIDTH, EMPTY_BOARD, EMPTY_LINE, EMPTY_SCORE_PANEL_BOARD } from "./constant";
+import { BOARD_HEIGHT, BOARD_WIDTH, EMPTY_BOARD, EMPTY_LINE, NEW_BLOCK_POSITION } from "./constant";
 import { create2DArray, deepCopy2DArray, getRandomBlock } from "./util";
 import NextBlockBoard from "./components/nextBlockBoard";
+
+enum GameStatus {
+  StartMenu = "Start Menu",
+  Playing = "Playing",
+  Pause = "Pause",
+  GameOver = "GameOver",
+}
 
 const App = () => {
   const [level, setLevel] = useState(1);
   const [score, setScore] = useState(0);
-
-  const [nextBlock, setNextBlock] = useState<number[][]>(getRandomBlock());
+  const [nextBlock, setNextBlock] = useState<number[][]>([]);
 
   const [board, setBoard] = useState<number[][]>(EMPTY_BOARD);
-  const [isPaused, setPaused] = useState(false);
-  const [gameOver, setGameOver] = useState(false);
+  const [gameStatus, setGameStatus] = useState(GameStatus.StartMenu);
 
-  const currLevelRef = useRef(1);
-
-  const blockRef = useRef(getRandomBlock());
-  const blockPositionRef = useRef([4, -1]);
+  const blockRef = useRef<number[][]>([]);
+  const blockPositionRef = useRef(NEW_BLOCK_POSITION);
   const stabledBoardRef = useRef(board);
 
-  const isGameOverRef = useRef(false);
-  const isPausedRef = useRef(false);
   const isTouchingRef = useRef(false);
   const invalidRef = useRef(false);
 
@@ -107,7 +108,7 @@ const App = () => {
   };
 
   const moveLeft = () => {
-    if (isPausedRef.current || isGameOverRef.current) return;
+    if (gameStatus !== GameStatus.Playing) return;
 
     const [oldX, oldY] = blockPositionRef.current;
     const newPosition = [Math.max(0, oldX - 1), oldY];
@@ -122,7 +123,7 @@ const App = () => {
   };
 
   const moveRight = () => {
-    if (isPausedRef.current || isGameOverRef.current) return;
+    if (gameStatus !== GameStatus.Playing) return;
 
     const [oldX, oldY] = blockPositionRef.current;
     const blockLength = getBlockWidth(blockRef.current);
@@ -137,12 +138,13 @@ const App = () => {
   };
 
   const moveDown = () => {
-    if (isPausedRef.current || isGameOverRef.current) return;
+    if (gameStatus !== GameStatus.Playing) return;
 
     if (checkIsTouching(blockRef.current, blockPositionRef.current)) {
       isTouchingRef.current = true;
     } else {
       isTouchingRef.current = false;
+      blockPositionRef.current = [...blockPositionRef.current];
       blockPositionRef.current[1]++;
     }
 
@@ -150,7 +152,7 @@ const App = () => {
   };
 
   const spin = () => {
-    if (isPausedRef.current) return;
+    if (gameStatus !== GameStatus.Playing) return;
 
     const oldBlock = blockRef.current;
     const oldBlockHeight = oldBlock.length;
@@ -176,27 +178,6 @@ const App = () => {
     }
 
     updateBoard();
-  };
-
-  const handlePause = () => {
-    isPausedRef.current = !isPausedRef.current;
-    setPaused((p) => !p);
-  };
-
-  const resetGame = () => {
-    setBoard(EMPTY_BOARD);
-    setScore(0);
-    updateNextBlock();
-    isPausedRef.current = false;
-    setPaused(false);
-    stabledBoardRef.current = EMPTY_BOARD;
-    blockPositionRef.current = [4, 0];
-    blockRef.current = deepCopy2DArray(nextBlock);
-    setLevel(1);
-    currLevelRef.current = 1;
-    setGameOver(false);
-    isGameOverRef.current = false;
-    moveDown();
   };
 
   const addBlockToBoard = (board: number[][], block: number[][]) => {
@@ -254,15 +235,13 @@ const App = () => {
 
       // check if game over
       if (newBoard[0].find((v) => v === 1)) {
-        handlePause();
-        setGameOver(true);
-        isGameOverRef.current = true;
+        setGameStatus(GameStatus.GameOver);
         return;
       }
 
       stabledBoardRef.current = deepCopy2DArray(newBoard);
       blockRef.current = deepCopy2DArray(nextBlock);
-      blockPositionRef.current = [4, -1];
+      blockPositionRef.current = NEW_BLOCK_POSITION;
       isTouchingRef.current = false;
 
       addBlockToBoard(newBoard, blockRef.current);
@@ -271,11 +250,6 @@ const App = () => {
 
     setBoard(newBoard);
   };
-
-  // init board
-  useEffect(() => {
-    updateBoard();
-  }, []);
 
   // keyboard event
   useEffect(() => {
@@ -294,10 +268,21 @@ const App = () => {
           spin();
           break;
         case "Enter":
-          resetGame();
+          // should check before restart
+          startGame();
           break;
         case "Space":
-          handlePause();
+          // drop
+          break;
+        case "KeyP":
+          if (gameStatus === GameStatus.Playing) {
+            pauseGame();
+          } else if (gameStatus === GameStatus.Pause) {
+            resumeGame();
+          }
+          break;
+        case "Escape":
+          endGame();
           break;
         default:
       }
@@ -305,49 +290,86 @@ const App = () => {
 
     window.addEventListener("keydown", handleKeyDown);
 
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [nextBlock]);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [nextBlock, gameStatus]);
 
   // auto fall
+  // todo: restart should reset interval
   useEffect(() => {
     let id: NodeJS.Timer | null = null;
-    if (level !== currLevelRef.current) {
-      currLevelRef.current = level;
-      id && clearInterval(id);
-      id = id = setInterval(() => {
-        moveDown();
-        updateBoard();
-      }, getLevelSpeed(level));
-    } else {
-      if (isPaused) {
-        id && clearInterval(id);
-      } else {
-        id = setInterval(() => {
-          moveDown();
-          updateBoard();
-        }, getLevelSpeed(level));
-      }
+    if (gameStatus === GameStatus.Playing) {
+      id = setInterval(moveDown, getLevelSpeed(level));
     }
     return () => {
       id && clearInterval(id);
     };
-  }, [isPaused, nextBlock, level]);
+  }, [gameStatus, level]);
+
+  const startGame = () => {
+    setGameStatus(GameStatus.Playing);
+
+    setScore(0);
+    setLevel(1);
+    setBoard(EMPTY_BOARD);
+
+    updateNextBlock();
+    blockRef.current = deepCopy2DArray(getRandomBlock());
+    blockPositionRef.current = [4, -1];
+    stabledBoardRef.current = EMPTY_BOARD;
+  };
+
+  const pauseGame = () => {
+    setGameStatus(GameStatus.Pause);
+  };
+
+  const resumeGame = () => {
+    setGameStatus(GameStatus.Playing);
+  };
+
+  // manully end game while play
+  // todo: should popup a socre panel
+  const endGame = () => {
+    setGameStatus(GameStatus.StartMenu);
+
+    setScore(0);
+    setLevel(1);
+    setBoard(EMPTY_BOARD);
+
+    setNextBlock([]);
+
+    blockRef.current = [];
+    blockPositionRef.current = NEW_BLOCK_POSITION;
+    stabledBoardRef.current = EMPTY_BOARD;
+  };
+
+  // after game over
+  const backToMenu = () => {
+    setGameStatus(GameStatus.StartMenu);
+
+    setScore(0);
+    setLevel(1);
+    setBoard(EMPTY_BOARD);
+
+    setNextBlock([]);
+
+    blockRef.current = [];
+    blockPositionRef.current = NEW_BLOCK_POSITION;
+    stabledBoardRef.current = EMPTY_BOARD;
+  };
 
   return (
     <div className="App">
       <div className={"board"}>
-        {gameOver && (
-          <div className="game-over">
+        {gameStatus === GameStatus.GameOver && (
+          <div className="popup-menu">
             <h3>Game Over</h3>
-            <button onClick={resetGame}>Restart</button>
+            <button onClick={startGame}>Restart</button>
           </div>
         )}
-        {isPaused && !gameOver && (
-          <div className="game-over">
+        {gameStatus === GameStatus.Pause && (
+          <div className="popup-menu">
             <h3>Pause</h3>
-            <button onClick={handlePause}>Resume</button>
+            <button onClick={resumeGame}>Resume</button>
           </div>
         )}
         {board.flat().map((v, i) => (
@@ -374,8 +396,27 @@ const App = () => {
         <br />
 
         {/* buttons */}
-        <div>
-          <button>start</button>
+        <div className="controls">
+          {gameStatus === GameStatus.StartMenu && <button onClick={startGame}>Start (Enter)</button>}
+          {gameStatus === GameStatus.Playing && (
+            <>
+              <button onClick={pauseGame}>Pause (P)</button>
+              <button onClick={startGame}>Restart (Enter)</button>
+              <button onClick={endGame}>End (ESC)</button>
+            </>
+          )}
+          {gameStatus === GameStatus.Pause && (
+            <>
+              <button onClick={resumeGame}>Resume (P)</button>
+              <button onClick={endGame}>End (ESC)</button>
+            </>
+          )}
+          {gameStatus === GameStatus.GameOver && (
+            <>
+              <button onClick={startGame}>Restart (Enter)</button>
+              <button onClick={backToMenu}>End (ESC)</button>
+            </>
+          )}
         </div>
       </div>
     </div>

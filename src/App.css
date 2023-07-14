@@ -50,7 +50,7 @@ body {
   background-color: auto;
 }
 
-.game-over {
+.popup-menu {
   position: absolute;
   left: 195px;
   top: 300px;
@@ -63,14 +63,14 @@ body {
   justify-content: center;
 }
 
-.game-over button {
+.popup-menu button {
   height: 50px;
   background-color: transparent;
   border-radius: 5px;
   cursor: pointer;
 }
 
-.game-over button:hover {
+.popup-menu button:hover {
   background-color: beige;
 }
 
@@ -82,4 +82,21 @@ body {
 
 .score {
   font-size: x-large;
+}
+
+.controls {
+  display: flex;
+  justify-content: space-around;
+}
+
+.controls button {
+  background-color: transparent;
+  height: 50px;
+  border-radius: 5px;
+  cursor: pointer;
+  margin: 0 10px;
+}
+
+.controls button:hover {
+  background-color: bisque;
 }

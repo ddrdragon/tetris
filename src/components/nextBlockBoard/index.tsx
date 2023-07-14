@@ -5,6 +5,7 @@ import { create2DArray } from "../../util";
 interface NextBlockBoardProps {
   nextBlock: number[][];
 }
+
 const NextBlockBoard = ({ nextBlock }: NextBlockBoardProps) => {
   const board = create2DArray(2, 4);
 
