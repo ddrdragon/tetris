@@ -360,6 +360,11 @@ const App = () => {
   return (
     <div className="App">
       <div className={"board"}>
+        {board.flat().map((v, i) => (
+          <div className={`outer-brick state${v}`} key={i}>
+            <div className={`inner-brick state${v}`}></div>
+          </div>
+        ))}
         {gameStatus === GameStatus.GameOver && (
           <div className="popup-menu">
             <h3>Game Over</h3>
@@ -372,9 +377,6 @@ const App = () => {
             <button onClick={resumeGame}>Resume</button>
           </div>
         )}
-        {board.flat().map((v, i) => (
-          <div className={`brick state${v}`} key={i}></div>
-        ))}
       </div>
       <div className="scorePanel">
         {/* score */}

@@ -3,7 +3,7 @@ html {
   padding: 0;
   height: 100vh;
   box-sizing: border-box;
-  background-color: beige;
+  background-color: #9eae86;
 }
 
 body {
@@ -33,21 +33,38 @@ body {
   position: relative;
 }
 
-.brick {
-  border: 5px solid grey;
-  padding: 15px;
+.outer-brick {
+  position: relative;
   margin: 1px;
-  width: 7px;
-  height: 7px;
-  border-radius: 2px;
+  width: 38px;
+  height: 38px;
+  background-color: auto;
+  border: 4px solid;
 }
 
-.state1 {
+.outer-brick.state1 {
+  border-color: black;
+}
+
+.outer-brick.state0 {
+  border-color: #879372;
+}
+
+.inner-brick {
+  position: absolute;
+  width: 34px;
+  height: 34px;
+  top: 2px;
+  left: 2px;
+  background-color: #879372;
+}
+
+.inner-brick.state1 {
   background-color: black;
 }
 
-.state0 {
-  background-color: auto;
+.inner-brick.state0 {
+  background-color: #879372;
 }
 
 .popup-menu {

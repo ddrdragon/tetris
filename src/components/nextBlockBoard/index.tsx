@@ -18,7 +18,9 @@ const NextBlockBoard = ({ nextBlock }: NextBlockBoardProps) => {
   return (
     <div className="next-block-board">
       {board.flat().map((v, i) => (
-        <div className={`brick state${v}`} key={i}></div>
+        <div className={`outer-brick state${v}`} key={i}>
+          <div className={`inner-brick state${v}`}></div>
+        </div>
       ))}
     </div>
   );
