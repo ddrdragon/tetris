@@ -38,4 +38,4 @@ export const EMPTY_SCORE_PANEL_BOARD = create2DArray(2, 4);
 
 export const EMPTY_LINE = new Array<number>(BOARD_WIDTH).fill(0);
 
-export const NEW_BLOCK_POSITION = [4, 0];
+export const NEW_BLOCK_POSITION = [4, 0]; //[x, y]

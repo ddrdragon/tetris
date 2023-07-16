@@ -20,29 +20,26 @@ const App = () => {
   const [gameStatus, setGameStatus] = useState(GameStatus.StartMenu);
 
   const blockRef = useRef<number[][]>([]);
-  const blockPositionRef = useRef(NEW_BLOCK_POSITION);
+  const blockPositionRef = useRef([...NEW_BLOCK_POSITION]);
   const stabledBoardRef = useRef(board);
 
-  const isTouchingRef = useRef(false);
-  const invalidRef = useRef(false);
-
-  const checkIsTouching = (block: number[][], position: number[]) => {
+  const canMoveDown = (stabledBoard: number[][], block: number[][], position: number[]) => {
     const [blockX, blockY] = position;
 
-    if (blockY + getBlockHeight() >= BOARD_HEIGHT) return true;
+    if (blockY + getBlockHeight(block) >= BOARD_HEIGHT) return false;
 
     for (let i = 0; i < block.length; i++) {
       for (let j = 0; j < block[0].length; j++) {
         if (block[i][j] === 1) {
           const x = blockX + j;
           const y = blockY + i + 1;
-          if (y >= 0 && y < BOARD_HEIGHT && stabledBoardRef.current[y][x] === 1) {
-            return true;
+          if (y >= 0 && y < BOARD_HEIGHT && stabledBoard[y][x] === 1) {
+            return false;
           }
         }
       }
     }
-    return false;
+    return true;
   };
 
   const checkIsInside = (block: number[][], position: number[]) => {
@@ -64,7 +61,7 @@ const App = () => {
   const checkIfNoConflict = (block: number[][], position: number[]) => {
     const [blockX, blockY] = position;
 
-    if (blockY + getBlockHeight() > BOARD_HEIGHT) return false;
+    if (blockY + getBlockHeight(block) > BOARD_HEIGHT) return false;
 
     for (let i = 0; i < block.length; i++) {
       for (let j = 0; j < block[0].length; j++) {
@@ -103,8 +100,59 @@ const App = () => {
     return block[0].length;
   };
 
-  const getBlockHeight = () => {
-    return blockRef.current.length;
+  const getBlockHeight = (block: number[][]) => {
+    return block.length;
+  };
+
+  const getNewBoard = (board: number[][], block: number[][], position: number[]) => {
+    const newBoard = deepCopy2DArray(board);
+    const [blockX, blockY] = position;
+
+    for (let i = 0; i < block.length; i++) {
+      for (let j = 0; j < block[0].length; j++) {
+        if (block[i][j] === 1) {
+          const x = blockX + j;
+          const y = blockY + i;
+          if (y >= 0) {
+            newBoard[y][x] = 1;
+          }
+        }
+      }
+    }
+
+    return newBoard;
+  };
+
+  const clearLinesAndUpdateScoreLevel = (board: number[][]) => {
+    let lines = 0;
+    for (let row = 0; row < BOARD_HEIGHT; row++) {
+      let isFull = true;
+      for (let col = 0; col < BOARD_WIDTH; col++) {
+        if (board[row][col] === 0) {
+          isFull = false;
+          break;
+        }
+      }
+      if (isFull) {
+        board.splice(row, 1);
+        board.unshift([...EMPTY_LINE]);
+        lines++;
+      }
+    }
+
+    setScore((s) => {
+      setLevel(Math.floor((s + getScore(lines) + 1) / 1000) + 1);
+      return s + getScore(lines) + 1;
+    });
+  };
+
+  const updateBoard = () => {
+    const board = getNewBoard(stabledBoardRef.current, blockRef.current, blockPositionRef.current);
+    setBoard(board);
+  };
+
+  const updateNextBlock = () => {
+    setNextBlock(getRandomBlock());
   };
 
   const moveLeft = () => {
@@ -115,11 +163,8 @@ const App = () => {
 
     if (checkIfNoConflict(blockRef.current, newPosition)) {
       blockPositionRef.current = newPosition;
-    } else {
-      invalidRef.current = true;
+      updateBoard();
     }
-
-    updateBoard();
   };
 
   const moveRight = () => {
@@ -128,27 +173,11 @@ const App = () => {
     const [oldX, oldY] = blockPositionRef.current;
     const blockLength = getBlockWidth(blockRef.current);
     const newPosition = [Math.min(BOARD_WIDTH - blockLength, oldX + 1), oldY];
+
     if (checkIfNoConflict(blockRef.current, newPosition)) {
       blockPositionRef.current = newPosition;
-    } else {
-      invalidRef.current = true;
+      updateBoard();
     }
-
-    updateBoard();
-  };
-
-  const moveDown = () => {
-    if (gameStatus !== GameStatus.Playing) return;
-
-    if (checkIsTouching(blockRef.current, blockPositionRef.current)) {
-      isTouchingRef.current = true;
-    } else {
-      isTouchingRef.current = false;
-      blockPositionRef.current = [...blockPositionRef.current];
-      blockPositionRef.current[1]++;
-    }
-
-    updateBoard();
   };
 
   const spin = () => {
@@ -175,63 +204,22 @@ const App = () => {
     // is new block inside or no conflict
     if (checkIsInside(newBlock, blockPositionRef.current) && checkIfNoConflict(newBlock, blockPositionRef.current)) {
       blockRef.current = newBlock;
-    }
-
-    updateBoard();
-  };
-
-  const addBlockToBoard = (board: number[][], block: number[][]) => {
-    const [blockX, blockY] = blockPositionRef.current;
-    for (let i = 0; i < block.length; i++) {
-      for (let j = 0; j < block[0].length; j++) {
-        if (block[i][j] === 1) {
-          const x = blockX + j;
-          const y = blockY + i;
-          if (y >= 0) {
-            board[y][x] = 1;
-          }
-        }
-      }
+      updateBoard();
     }
   };
 
-  const handleClearLines = (board: number[][]) => {
-    let lines = 0;
-    for (let row = 0; row < BOARD_HEIGHT; row++) {
-      let isFull = true;
-      for (let col = 0; col < BOARD_WIDTH; col++) {
-        if (board[row][col] === 0) {
-          isFull = false;
-          break;
-        }
-      }
-      if (isFull) {
-        board.splice(row, 1);
-        board.unshift([...EMPTY_LINE]);
-        lines++;
-      }
-    }
-    return lines;
-  };
+  const moveDown = () => {
+    if (gameStatus !== GameStatus.Playing) return;
 
-  const updateNextBlock = () => {
-    setNextBlock(getRandomBlock());
-  };
+    if (canMoveDown(stabledBoardRef.current, blockRef.current, blockPositionRef.current)) {
+      // move down block
+      blockPositionRef.current[1]++;
+      updateBoard();
+    } else {
+      const newBoard = getNewBoard(stabledBoardRef.current, blockRef.current, blockPositionRef.current);
 
-  const updateBoard = () => {
-    const newBoard = deepCopy2DArray(stabledBoardRef.current);
-    const newBlock = deepCopy2DArray(blockRef.current);
-
-    addBlockToBoard(newBoard, newBlock);
-
-    if (isTouchingRef.current) {
-      // if need clear lines
-      const lines = handleClearLines(newBoard);
-
-      setScore((s) => {
-        setLevel(Math.floor((s + getScore(lines) + 1) / 1000) + 1);
-        return s + getScore(lines) + 1;
-      });
+      // clear lines or game over
+      clearLinesAndUpdateScoreLevel(newBoard);
 
       // check if game over
       if (newBoard[0].find((v) => v === 1)) {
@@ -241,14 +229,10 @@ const App = () => {
 
       stabledBoardRef.current = deepCopy2DArray(newBoard);
       blockRef.current = deepCopy2DArray(nextBlock);
-      blockPositionRef.current = NEW_BLOCK_POSITION;
-      isTouchingRef.current = false;
-
-      addBlockToBoard(newBoard, blockRef.current);
+      blockPositionRef.current = [...NEW_BLOCK_POSITION];
+      updateBoard();
       updateNextBlock();
     }
-
-    setBoard(newBoard);
   };
 
   // keyboard event
@@ -303,7 +287,7 @@ const App = () => {
     return () => {
       id && clearInterval(id);
     };
-  }, [gameStatus, level]);
+  }, [gameStatus, level, nextBlock]);
 
   const startGame = () => {
     setGameStatus(GameStatus.Playing);
@@ -369,6 +353,7 @@ const App = () => {
           <div className="popup-menu">
             <h3>Game Over</h3>
             <button onClick={startGame}>Restart</button>
+            <button onClick={endGame}>End</button>
           </div>
         )}
         {gameStatus === GameStatus.Pause && (
