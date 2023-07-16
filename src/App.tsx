@@ -32,6 +32,7 @@ const App = () => {
   const [preventKeyEvent, setPreventKeyEvent] = useState(false);
 
   const [keyPressed, setKeyPressed] = useState<KeyState | null>(null);
+  const [droppedTimer, setDroppedTimer] = useState<NodeJS.Timer | null>(null);
 
   const blockRef = useRef<number[][]>([]);
   const blockPositionRef = useRef([...NEW_BLOCK_POSITION]);
@@ -137,6 +138,12 @@ const App = () => {
     return newBoard;
   };
 
+  const getDroppedY = () => {
+    while (canMoveDown(stabledBoardRef.current, blockRef.current, blockPositionRef.current)) {
+      blockPositionRef.current[1]++;
+    }
+  };
+
   const clearLinesAndUpdateScoreLevel = (board: number[][]) => {
     let lines = 0;
     for (let row = 0; row < BOARD_HEIGHT; row++) {
@@ -170,7 +177,7 @@ const App = () => {
   };
 
   const moveLeft = () => {
-    if (gameStatus !== GameStatus.Playing) return;
+    if (gameStatus !== GameStatus.Playing || droppedTimer) return;
 
     const [oldX, oldY] = blockPositionRef.current;
     const newPosition = [Math.max(0, oldX - 1), oldY];
@@ -182,7 +189,7 @@ const App = () => {
   };
 
   const moveRight = () => {
-    if (gameStatus !== GameStatus.Playing) return;
+    if (gameStatus !== GameStatus.Playing || droppedTimer) return;
 
     const [oldX, oldY] = blockPositionRef.current;
     const blockLength = getBlockWidth(blockRef.current);
@@ -195,7 +202,7 @@ const App = () => {
   };
 
   const spin = () => {
-    if (gameStatus !== GameStatus.Playing) return;
+    if (gameStatus !== GameStatus.Playing || droppedTimer) return;
 
     const oldBlock = blockRef.current;
     const oldBlockHeight = oldBlock.length;
@@ -220,6 +227,19 @@ const App = () => {
       blockRef.current = newBlock;
       updateBoard();
     }
+  };
+
+  const drop = () => {
+    if (gameStatus !== GameStatus.Playing) return;
+
+    getDroppedY();
+    updateBoard();
+
+    const id = setTimeout(() => {
+      moveDown();
+      setDroppedTimer(null);
+    }, 250);
+    setDroppedTimer(id);
   };
 
   const moveDown = () => {
@@ -247,7 +267,7 @@ const App = () => {
       updateBoard();
       updateNextBlock();
 
-      if (keyPressed) {
+      if (keyPressed && keyPressed !== KeyState.Space) {
         setPreventKeyEvent(true);
       }
     }
@@ -296,6 +316,7 @@ const App = () => {
         break;
       case KeyState.Space:
         // drop
+        drop();
         setPreventKeyEvent(true);
         break;
       case KeyState.Enter:
@@ -303,6 +324,7 @@ const App = () => {
         setPreventKeyEvent(true);
         break;
       case KeyState.KeyP:
+      case KeyState.Escape:
         if (gameStatus === GameStatus.Playing) {
           pauseGame();
         } else if (gameStatus === GameStatus.Pause) {
@@ -310,20 +332,17 @@ const App = () => {
         }
         setPreventKeyEvent(true);
         break;
-      case KeyState.Escape:
-        endGame();
-        setPreventKeyEvent(true);
-        break;
     }
 
     return () => {
       id && clearInterval(id);
     };
-  }, [keyPressed, preventKeyEvent, gameStatus, nextBlock]);
+  }, [keyPressed, preventKeyEvent, gameStatus, nextBlock, droppedTimer]);
 
   // auto fall
   // todo: restart should reset interval
   useEffect(() => {
+    if (droppedTimer) return;
     let id: NodeJS.Timer | null = null;
     if (gameStatus === GameStatus.Playing) {
       id = setInterval(moveDown, getLevelSpeed(level));
@@ -331,7 +350,7 @@ const App = () => {
     return () => {
       id && clearInterval(id);
     };
-  }, [gameStatus, level, nextBlock]);
+  }, [gameStatus, level, nextBlock, droppedTimer]);
 
   const startGame = () => {
     setGameStatus(GameStatus.Playing);
@@ -433,19 +452,19 @@ const App = () => {
             <>
               <button onClick={pauseGame}>Pause (P)</button>
               <button onClick={startGame}>Restart (Enter)</button>
-              <button onClick={endGame}>End (ESC)</button>
+              <button onClick={endGame}>End Game</button>
             </>
           )}
           {gameStatus === GameStatus.Pause && (
             <>
               <button onClick={resumeGame}>Resume (P)</button>
-              <button onClick={endGame}>End (ESC)</button>
+              <button onClick={endGame}>End Game</button>
             </>
           )}
           {gameStatus === GameStatus.GameOver && (
             <>
               <button onClick={startGame}>Restart (Enter)</button>
-              <button onClick={backToMenu}>End (ESC)</button>
+              <button onClick={backToMenu}>End Game</button>
             </>
           )}
         </div>
