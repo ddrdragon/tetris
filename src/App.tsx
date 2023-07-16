@@ -11,6 +11,17 @@ enum GameStatus {
   GameOver = "GameOver",
 }
 
+enum KeyState {
+  ArrowDown = "ArrowDown",
+  ArrowLeft = "ArrowLeft",
+  ArrowRight = "ArrowRight",
+  ArrowUp = "ArrowUp",
+  Enter = "Enter",
+  Space = "Space",
+  Escape = "Escape",
+  KeyP = "KeyP",
+}
+
 const App = () => {
   const [level, setLevel] = useState(1);
   const [score, setScore] = useState(0);
@@ -18,6 +29,9 @@ const App = () => {
 
   const [board, setBoard] = useState<number[][]>(EMPTY_BOARD);
   const [gameStatus, setGameStatus] = useState(GameStatus.StartMenu);
+  const [preventKeyEvent, setPreventKeyEvent] = useState(false);
+
+  const [keyPressed, setKeyPressed] = useState<KeyState | null>(null);
 
   const blockRef = useRef<number[][]>([]);
   const blockPositionRef = useRef([...NEW_BLOCK_POSITION]);
@@ -232,50 +246,80 @@ const App = () => {
       blockPositionRef.current = [...NEW_BLOCK_POSITION];
       updateBoard();
       updateNextBlock();
+
+      if (keyPressed) {
+        setPreventKeyEvent(true);
+      }
     }
   };
 
   // keyboard event
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      switch (e.code) {
-        case "ArrowRight":
-          moveRight();
-          break;
-        case "ArrowLeft":
-          moveLeft();
-          break;
-        case "ArrowDown":
-          moveDown();
-          break;
-        case "ArrowUp":
-          spin();
-          break;
-        case "Enter":
-          // should check before restart
-          startGame();
-          break;
-        case "Space":
-          // drop
-          break;
-        case "KeyP":
-          if (gameStatus === GameStatus.Playing) {
-            pauseGame();
-          } else if (gameStatus === GameStatus.Pause) {
-            resumeGame();
-          }
-          break;
-        case "Escape":
-          endGame();
-          break;
-        default:
-      }
+      setKeyPressed(e.code as KeyState);
+    };
+
+    const handleKeyUp = () => {
+      setKeyPressed(null);
+      setPreventKeyEvent(false);
     };
 
     window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
 
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [nextBlock, gameStatus]);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (preventKeyEvent) return;
+
+    let id: NodeJS.Timer | null = null;
+    switch (keyPressed) {
+      case KeyState.ArrowLeft:
+        moveLeft();
+        id = setInterval(moveLeft, 100);
+        break;
+      case KeyState.ArrowRight:
+        moveRight();
+        id = setInterval(moveRight, 100);
+        break;
+      case KeyState.ArrowUp:
+        spin();
+        id = setInterval(spin, 300);
+        break;
+      case KeyState.ArrowDown:
+        moveDown();
+        id = setInterval(moveDown, 50);
+        break;
+      case KeyState.Space:
+        // drop
+        setPreventKeyEvent(true);
+        break;
+      case KeyState.Enter:
+        startGame();
+        setPreventKeyEvent(true);
+        break;
+      case KeyState.KeyP:
+        if (gameStatus === GameStatus.Playing) {
+          pauseGame();
+        } else if (gameStatus === GameStatus.Pause) {
+          resumeGame();
+        }
+        setPreventKeyEvent(true);
+        break;
+      case KeyState.Escape:
+        endGame();
+        setPreventKeyEvent(true);
+        break;
+    }
+
+    return () => {
+      id && clearInterval(id);
+    };
+  }, [keyPressed, preventKeyEvent, gameStatus, nextBlock]);
 
   // auto fall
   // todo: restart should reset interval
