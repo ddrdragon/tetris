@@ -402,6 +402,19 @@ const App = () => {
   // manully end game while play
   // todo: should popup a socre panel
   const endGame = () => {
+    const newScore = score;
+    const oldHighScoreStr = localStorage.getItem("high-score");
+    if (oldHighScoreStr) {
+      const oldHighScore = Number(oldHighScoreStr);
+      if (newScore > oldHighScore) {
+        localStorage.setItem("high-score", `${newScore}`);
+        setHighScore(newScore);
+      }
+    } else {
+      localStorage.setItem("high-score", `${newScore}`);
+      setHighScore(newScore);
+    }
+
     setGameStatus(GameStatus.StartMenu);
 
     setScore(0);
