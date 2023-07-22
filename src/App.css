@@ -67,6 +67,13 @@ body {
   background-color: #879372;
 }
 
+.outer-brick.state-1 {
+  border-color: #726158;
+}
+.inner-brick.state-1 {
+  background-color: #726158;
+}
+
 .popup-menu {
   position: absolute;
   left: 195px;

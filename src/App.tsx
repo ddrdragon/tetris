@@ -7,6 +7,7 @@ import NextBlockBoard from "./components/nextBlockBoard";
 enum GameStatus {
   StartMenu = "Start Menu",
   Playing = "Playing",
+  Flicking = "Flicking",
   Pause = "Pause",
   GameOver = "GameOver",
 }
@@ -150,8 +151,8 @@ const App = () => {
     }
   };
 
-  const clearLinesAndUpdateScoreLevel = (board: number[][]) => {
-    let lines = 0;
+  const getClearedLines = (board: number[][]) => {
+    const lines: number[] = [];
     for (let row = 0; row < BOARD_HEIGHT; row++) {
       let isFull = true;
       for (let col = 0; col < BOARD_WIDTH; col++) {
@@ -161,19 +162,10 @@ const App = () => {
         }
       }
       if (isFull) {
-        board.splice(row, 1);
-        board.unshift([...EMPTY_LINE]);
-        lines++;
+        lines.push(row);
       }
     }
-
-    setClearedLines((n) => {
-      const newLines = n + lines;
-      setLevel(Math.min(Math.floor(newLines / LEVEL_UP_LINES) + startLevel, 10));
-      console.log("set", Math.floor(newLines / LEVEL_UP_LINES), startLevel);
-      return newLines;
-    });
-    setScore((s) => s + getScore(lines) + 9 + level);
+    return lines;
   };
 
   const updateBoard = () => {
@@ -183,6 +175,32 @@ const App = () => {
 
   const updateNextBlock = () => {
     setNextBlock(getRandomBlock());
+  };
+
+  const updateScore = (clearedLines: number) => {
+    setClearedLines((n) => {
+      const newLines = n + clearedLines;
+      setLevel(Math.min(Math.floor(newLines / LEVEL_UP_LINES) + startLevel, 10));
+      return newLines;
+    });
+    setScore((s) => s + getScore(clearedLines) + 9 + level);
+  };
+
+  const updateForNext = (newBoard: number[][]) => {
+    stabledBoardRef.current = deepCopy2DArray(newBoard);
+    blockRef.current = deepCopy2DArray(nextBlock);
+    blockPositionRef.current = [...NEW_BLOCK_POSITION];
+    updateBoard();
+    updateNextBlock();
+  };
+
+  const flickLines = (newBoard: number[][], clearedLines: number[]) => {
+    for (const row of clearedLines) {
+      for (let i = 0; i < BOARD_WIDTH; i++) {
+        newBoard[row][i] *= -1;
+      }
+    }
+    setBoard(deepCopy2DArray(newBoard));
   };
 
   const moveLeft = () => {
@@ -261,32 +279,50 @@ const App = () => {
     } else {
       const newBoard = getNewBoard(stabledBoardRef.current, blockRef.current, blockPositionRef.current);
 
-      // clear lines or game over
-      clearLinesAndUpdateScoreLevel(newBoard);
+      const clearedLines = getClearedLines(newBoard);
 
-      // check if game over
-      if (newBoard[0].find((v) => v === 1)) {
-        setGameStatus(GameStatus.GameOver);
-        const newScore = score + 1;
-        const oldHighScoreStr = localStorage.getItem("high-score");
-        if (oldHighScoreStr) {
-          const oldHighScore = Number(oldHighScoreStr);
-          if (newScore > oldHighScore) {
+      if (clearedLines.length === 0) {
+        // check if game over and return
+        if (newBoard[0].find((v) => v === 1)) {
+          setGameStatus(GameStatus.GameOver);
+          const newScore = score + 1;
+          const oldHighScoreStr = localStorage.getItem("high-score");
+          if (oldHighScoreStr) {
+            const oldHighScore = Number(oldHighScoreStr);
+            if (newScore > oldHighScore) {
+              localStorage.setItem("high-score", `${newScore}`);
+              setHighScore(newScore);
+            }
+          } else {
             localStorage.setItem("high-score", `${newScore}`);
             setHighScore(newScore);
           }
-        } else {
-          localStorage.setItem("high-score", `${newScore}`);
-          setHighScore(newScore);
+          return;
         }
-        return;
-      }
 
-      stabledBoardRef.current = deepCopy2DArray(newBoard);
-      blockRef.current = deepCopy2DArray(nextBlock);
-      blockPositionRef.current = [...NEW_BLOCK_POSITION];
-      updateBoard();
-      updateNextBlock();
+        updateScore(clearedLines.length);
+        updateForNext(newBoard);
+      } else {
+        setGameStatus(GameStatus.Flicking);
+
+        flickLines(newBoard, clearedLines);
+        const flickerId = setInterval(() => {
+          flickLines(newBoard, clearedLines);
+        }, 100);
+
+        setTimeout(() => {
+          clearInterval(flickerId);
+          setGameStatus(GameStatus.Playing);
+          // clear rows on new Board
+          for (const row of clearedLines) {
+            newBoard.splice(row, 1);
+            newBoard.unshift([...EMPTY_LINE]);
+          }
+
+          updateScore(clearedLines.length);
+          updateForNext(newBoard);
+        }, 500);
+      }
 
       if (keyPressed && keyPressed !== KeyState.Space) {
         setPreventKeyEvent(true);
