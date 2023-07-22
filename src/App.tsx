@@ -333,7 +333,11 @@ const App = () => {
         setPreventKeyEvent(true);
         break;
       case KeyState.Enter:
-        startGame();
+        if (gameStatus === GameStatus.Pause) {
+          resumeGame();
+        } else {
+          startGame();
+        }
         setPreventKeyEvent(true);
         break;
       case KeyState.KeyP:
