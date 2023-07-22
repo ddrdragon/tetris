@@ -23,6 +23,7 @@ enum KeyState {
 }
 
 const App = () => {
+  const [highScore, setHighScore] = useState<number | null>(null);
   const [level, setLevel] = useState(1);
   const [score, setScore] = useState(0);
   const [nextBlock, setNextBlock] = useState<number[][]>([]);
@@ -258,6 +259,18 @@ const App = () => {
       // check if game over
       if (newBoard[0].find((v) => v === 1)) {
         setGameStatus(GameStatus.GameOver);
+        const newScore = score + 1;
+        const oldHighScoreStr = localStorage.getItem("high-score");
+        if (oldHighScoreStr) {
+          const oldHighScore = Number(oldHighScoreStr);
+          if (newScore > oldHighScore) {
+            localStorage.setItem("high-score", `${newScore}`);
+            setHighScore(newScore);
+          }
+        } else {
+          localStorage.setItem("high-score", `${newScore}`);
+          setHighScore(newScore);
+        }
         return;
       }
 
@@ -337,7 +350,7 @@ const App = () => {
     return () => {
       id && clearInterval(id);
     };
-  }, [keyPressed, preventKeyEvent, gameStatus, nextBlock, droppedTimer]);
+  }, [keyPressed, preventKeyEvent, gameStatus, nextBlock, droppedTimer, score]);
 
   // auto fall
   // todo: restart should reset interval
@@ -351,6 +364,15 @@ const App = () => {
       id && clearInterval(id);
     };
   }, [gameStatus, level, nextBlock, droppedTimer]);
+
+  useEffect(() => {
+    const highestScore = localStorage.getItem("high-score");
+    if (highestScore) {
+      setHighScore(JSON.parse(highestScore));
+    } else {
+      setHighScore(0);
+    }
+  }, []);
 
   const startGame = () => {
     setGameStatus(GameStatus.Playing);
@@ -427,6 +449,11 @@ const App = () => {
         )}
       </div>
       <div className="scorePanel">
+        {/* score */}
+        <div>
+          High Score: <b className="score">{highScore}</b>
+        </div>
+
         {/* score */}
         <div>
           Score: <b className="score">{score}</b>
