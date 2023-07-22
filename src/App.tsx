@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import "./App.css";
-import { BOARD_HEIGHT, BOARD_WIDTH, EMPTY_BOARD, EMPTY_LINE, NEW_BLOCK_POSITION } from "./constant";
-import { create2DArray, deepCopy2DArray, getRandomBlock } from "./util";
+import { BOARD_HEIGHT, BOARD_WIDTH, EMPTY_BOARD, EMPTY_LINE, LEVEL_UP_LINES, NEW_BLOCK_POSITION } from "./constant";
+import { create2DArray, deepCopy2DArray, getRadomInt, getRandomBlock } from "./util";
 import NextBlockBoard from "./components/nextBlockBoard";
 
 enum GameStatus {
@@ -24,9 +24,12 @@ enum KeyState {
 
 const App = () => {
   const [highScore, setHighScore] = useState<number | null>(null);
-  const [level, setLevel] = useState(1);
   const [score, setScore] = useState(0);
+  const [clearedLines, setClearedLines] = useState(0);
+  const [level, setLevel] = useState(1);
   const [nextBlock, setNextBlock] = useState<number[][]>([]);
+  const [startLevel, setStartLevel] = useState(1);
+  const [startLines, setStartLines] = useState(0);
 
   const [board, setBoard] = useState<number[][]>(EMPTY_BOARD);
   const [gameStatus, setGameStatus] = useState(GameStatus.StartMenu);
@@ -39,6 +42,7 @@ const App = () => {
   const blockPositionRef = useRef([...NEW_BLOCK_POSITION]);
   const stabledBoardRef = useRef(board);
 
+  console.log("lines", clearedLines);
   const canMoveDown = (stabledBoard: number[][], block: number[][], position: number[]) => {
     const [blockX, blockY] = position;
 
@@ -94,15 +98,16 @@ const App = () => {
   };
 
   const getScore = (lines: number) => {
+    const factor = Math.max(1, 1 + (level - 5) / 10);
     switch (lines) {
       case 1:
-        return 10;
+        return Math.floor(100 * factor);
       case 2:
-        return 25;
+        return Math.floor(250 * factor);
       case 3:
-        return 40;
+        return Math.floor(400 * factor);
       case 4:
-        return 60;
+        return Math.floor(600 * factor);
       default:
         return 0;
     }
@@ -162,10 +167,13 @@ const App = () => {
       }
     }
 
-    setScore((s) => {
-      setLevel(Math.floor((s + getScore(lines) + 1) / 1000) + 1);
-      return s + getScore(lines) + 1;
+    setClearedLines((n) => {
+      const newLines = n + lines;
+      setLevel(Math.min(Math.floor(newLines / LEVEL_UP_LINES) + startLevel, 10));
+      console.log("set", Math.floor(newLines / LEVEL_UP_LINES), startLevel);
+      return newLines;
     });
+    setScore((s) => s + getScore(lines) + 9 + level);
   };
 
   const updateBoard = () => {
@@ -378,17 +386,39 @@ const App = () => {
     }
   }, []);
 
+  const generateNewBoard = (lines: number) => {
+    const newBoard = deepCopy2DArray(EMPTY_BOARD);
+    for (let i = BOARD_HEIGHT - lines; i < BOARD_HEIGHT; i++) {
+      let count = 0;
+      for (let j = 0; j < BOARD_WIDTH; j++) {
+        if (Math.random() > 0.5) {
+          newBoard[i][j] = 1;
+          count++;
+        }
+      }
+      if (count === 0) {
+        newBoard[i][getRadomInt(BOARD_WIDTH)] = 1;
+      } else if (count === BOARD_WIDTH) {
+        newBoard[i][getRadomInt(BOARD_WIDTH)] = 0;
+      }
+    }
+    return newBoard;
+  };
+
   const startGame = () => {
+    const newBoard = generateNewBoard(startLines);
+
     setGameStatus(GameStatus.Playing);
 
     setScore(0);
-    setLevel(1);
-    setBoard(EMPTY_BOARD);
+    setLevel(startLevel);
+    setBoard(newBoard);
+    setClearedLines(0);
 
     updateNextBlock();
     blockRef.current = deepCopy2DArray(getRandomBlock());
     blockPositionRef.current = [4, -1];
-    stabledBoardRef.current = EMPTY_BOARD;
+    stabledBoardRef.current = newBoard;
   };
 
   const pauseGame = () => {
@@ -402,11 +432,25 @@ const App = () => {
   // manully end game while play
   // todo: should popup a socre panel
   const endGame = () => {
+    const newScore = score;
+    const oldHighScoreStr = localStorage.getItem("high-score");
+    if (oldHighScoreStr) {
+      const oldHighScore = Number(oldHighScoreStr);
+      if (newScore > oldHighScore) {
+        localStorage.setItem("high-score", `${newScore}`);
+        setHighScore(newScore);
+      }
+    } else {
+      localStorage.setItem("high-score", `${newScore}`);
+      setHighScore(newScore);
+    }
+
     setGameStatus(GameStatus.StartMenu);
 
     setScore(0);
     setLevel(1);
     setBoard(EMPTY_BOARD);
+    setClearedLines(0);
 
     setNextBlock([]);
 
@@ -428,6 +472,14 @@ const App = () => {
     blockRef.current = [];
     blockPositionRef.current = NEW_BLOCK_POSITION;
     stabledBoardRef.current = EMPTY_BOARD;
+  };
+
+  const changeStartLevel = (n: number) => {
+    setStartLevel(Math.max(1, Math.min(startLevel + n, 10)));
+  };
+
+  const changeStartLines = (n: number) => {
+    setStartLines(Math.max(0, Math.min(startLines + n, 15)));
   };
 
   return (
@@ -453,7 +505,7 @@ const App = () => {
         )}
       </div>
       <div className="scorePanel">
-        {/* score */}
+        {/* high score */}
         <div>
           High Score: <b className="score">{highScore}</b>
         </div>
@@ -499,6 +551,22 @@ const App = () => {
             </>
           )}
         </div>
+
+        <br />
+        {gameStatus === GameStatus.StartMenu && (
+          <div className="start-control">
+            <div className="control-item">
+              <button onClick={() => changeStartLevel(-1)}>-</button>
+              Start Level {startLevel}
+              <button onClick={() => changeStartLevel(1)}>+</button>
+            </div>
+            <div className="control-item">
+              <button onClick={() => changeStartLines(-1)}>-</button>
+              Start Lines {startLines}
+              <button onClick={() => changeStartLines(1)}>+</button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
